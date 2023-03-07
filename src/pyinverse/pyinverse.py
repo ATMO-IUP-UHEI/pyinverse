@@ -3,7 +3,10 @@ import numpy as np
 
 def solve(y, K):
     """
-    Returns the least-squares solution `x` to the equation ``y = Kx``. 
+    Returns the least-squares solution.
+
+    Returns the state `x` to the equation ``y = Kx`` given the measurements `y` and the 
+    forward model matrix `K`.
 
     Parameters
     ----------
