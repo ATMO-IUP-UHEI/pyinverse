@@ -4,9 +4,23 @@ Solve various inverse problems!
 
 ## Installation
 
-```bash
+1. Install poetry as a package manager (<https://python-poetry.org/docs/#installation>)
+
+2. Download the source code from GitHub:
+
+    ```bash
+    $ git clone https://github.com/ATMO-IUP-UHEI/pyinverse.git
+    ```
+3. Open the directory and install with poetry:
+
+    ```bash
+    cd pyinverse
+    poetry install
+    ```
+
+<!-- ```bash
 $ pip install pyinverse
-```
+``` -->
 
 ## Usage
 
