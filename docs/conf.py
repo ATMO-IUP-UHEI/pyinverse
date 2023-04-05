@@ -20,6 +20,7 @@ extensions = [
     "autoapi.extension",
     "sphinx.ext.napoleon",
     "sphinx.ext.viewcode",
+    "sphinx.ext.graphviz",
 ]
 autoapi_dirs = ["../src"]
 html_theme = "sphinx_rtd_theme"

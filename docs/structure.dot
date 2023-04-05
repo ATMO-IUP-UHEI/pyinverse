@@ -1,0 +1,37 @@
+digraph example {
+    graph [
+        rankdir = "TB",
+        bgcolor = "#f7f7f7",
+        fontname = "Helvetica",
+        fontsize = "14",
+        splines = "true",
+        nodesep = "0.6",
+        ranksep = "1.2"
+    ];
+
+    node [
+        shape = "box",
+        style = "filled",
+        fillcolor = "#1abc9c",
+        fontname = "Helvetica",
+        fontsize = "12",
+        color = "#ffffff",
+        penwidth = "1.2"
+    ];
+
+    edge [
+        color = "#7f8c8d",
+        fontname = "Helvetica",
+        fontsize = "12",
+        penwidth = "1.2"
+    ];
+
+    "A" -> "B" [label = "2"];
+    "B" -> "C" [label = "3"];
+    "C" -> "D" [label = "1"];
+    "A" -> "C" [label = "4"];
+    "B" -> "D" [label = "2"];
+    
+    {rank=same; "A"; "C";}
+    {rank=same; "B"; "D";}
+}
