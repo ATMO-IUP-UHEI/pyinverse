@@ -15,8 +15,11 @@ def test():
 
         x = rng.normal(size=n)
         x_pred = rng.normal(size=n)
+        x_prior = rng.normal(size=n)
+        cov_prior = np.abs(rng.normal(size=n))
         K = rng.normal(size=(m, n))
         y = K @ x
+        cov_y = np.abs(rng.normal(size=m))
 
         alpha = rng.normal()
 
@@ -25,6 +28,22 @@ def test():
 
         least_squares_test(x_pred, K, y, measurement_loss)
         thikonov_test(x_pred, K, y, alpha, measurement_loss, regularization_loss)
+
+        measurement_loss = np.linalg.norm((y - K @ x_pred) / np.sqrt(cov_y)) ** 2
+        regularization_loss = (
+            np.linalg.norm((x_pred - x_prior) / np.sqrt(cov_prior)) ** 2
+        )
+
+        bayesian_test(
+            x_pred,
+            K,
+            y,
+            cov_y,
+            x_prior,
+            cov_prior,
+            measurement_loss,
+            regularization_loss,
+        )
 
 
 def least_squares_test(x_pred, K, y, measurement_loss):
@@ -39,3 +58,11 @@ def thikonov_test(x_pred, K, y, alpha, measurement_loss, regularization_loss):
     assert np.allclose(measurement_loss + regularization_loss, loss(x_pred))
     # assert np.allclose(y, loss.get_y())
     # assert np.allclose(K, loss.get_K())
+
+
+def bayesian_test(
+    x_pred, K, y, cov_y, x_prior, cov_prior, measurement_loss, regularization_loss
+):
+    loss = Bayesian(y, cov_y, K, x_prior, cov_prior)
+    print(measurement_loss + regularization_loss)
+    assert np.allclose(measurement_loss + regularization_loss, loss(x_pred))
