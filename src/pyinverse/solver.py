@@ -73,7 +73,7 @@ class BayesianAnalytical:
         return self._cov_posterior
 
     @property
-    def sig_posterior(self) -> np.ndarray:
+    def std_posterior(self) -> np.ndarray:
         return np.sqrt(np.diag(self.cov_posterior))
 
     @property

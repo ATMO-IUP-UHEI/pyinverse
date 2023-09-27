@@ -60,7 +60,17 @@ def test_bayesian_analytical(bayesianloss: Bayesian):
     x_posterior, cov_posterior = solver()
     averaging_kernel = solver.averaging_kernel
     gain = solver.gain
+    std_posterior = solver.std_posterior
+    y_posterior = solver.y_posterior
     assert x_posterior.shape == bayesianloss.x_prior.shape
     assert cov_posterior.shape == bayesianloss.cov_prior.shape
     assert averaging_kernel.shape == bayesianloss.cov_prior.shape
     assert gain.shape == bayesianloss.K.T.shape
+    assert std_posterior.shape == bayesianloss.x_prior.shape
+    assert y_posterior.shape == bayesianloss.y.shape
+    dummyloss = DummyLoss(bayesianloss.K, bayesianloss.y)
+    with pytest.raises(TypeError):
+        solver = BayesianAnalytical(dummyloss)
+
+
+    
