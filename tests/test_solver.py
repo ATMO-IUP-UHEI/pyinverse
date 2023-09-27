@@ -1,5 +1,23 @@
-from pyinverse.solver import LSTSQ
+from pyinverse.solver import LSTSQ, BayesianAnalytical
+from pyinverse.loss import Bayesian
 import numpy as np
+import pytest
+
+
+@pytest.fixture
+def bayesianloss():
+    rng = np.random.default_rng(seed=0)
+    n = 10
+    m = 5
+    x_prior = rng.normal(size=n)
+    cov_prior = rng.normal(size=(n, n))
+    cov_prior = cov_prior @ cov_prior.T
+    K = rng.normal(size=(m, n))
+    y = K @ x_prior + rng.normal(size=m)
+    cov_y = rng.normal(size=m)
+    cov_y = cov_y @ cov_y.T
+    loss = Bayesian(y=y, cov_y=cov_y, K=K, x_prior=x_prior, cov_prior=cov_prior)
+    return loss
 
 
 class DummyLoss:
@@ -35,3 +53,14 @@ def test_lstsq():
         x_est, res, rank, s = solver()
 
         assert x_est.shape == x.shape
+
+
+def test_bayesian_analytical(bayesianloss: Bayesian):
+    solver = BayesianAnalytical(bayesianloss)
+    x_posterior, cov_posterior = solver()
+    averaging_kernel = solver.averaging_kernel
+    gain = solver.gain
+    assert x_posterior.shape == bayesianloss.x_prior.shape
+    assert cov_posterior.shape == bayesianloss.cov_prior.shape
+    assert averaging_kernel.shape == bayesianloss.cov_prior.shape
+    assert gain.shape == bayesianloss.K.T.shape
