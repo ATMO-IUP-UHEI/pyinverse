@@ -3,6 +3,17 @@ import numpy as np
 
 class Whitening:
     def __init__(self, cov, tol=None):
+        """
+        Whitening transform for a given covariance matrix.
+
+        Parameters
+        ----------
+        cov : array_like
+            Covariance matrix.
+        tol : float, optional
+            Tolerance for rank estimation. If None, use default tolerance of
+            numpy.linalg.matrix_rank.
+        """
         self.cov = cov
         # Check that cov is hermitian
         assert np.allclose(cov.T, cov)
@@ -17,6 +28,19 @@ class Whitening:
         self.rank = np.linalg.matrix_rank(cov, tol=tol, hermitian=True)
 
     def transform(self, x):
+        """
+        Transform x to whitened coordinates.
+        
+        Parameters
+        ----------
+        x : array_like
+            Input array.
+
+        Returns
+        -------
+        array_like
+            Transformed array.
+        """
         if len(x.shape) == 1:
             return ((self.u.T @ x) * self.s_inv_sqrt)[: self.rank]
         else:
@@ -25,6 +49,19 @@ class Whitening:
             ]
 
     def inverse_transform(self, x):
+        """
+        Transform x from whitened coordinates to original coordinates.
+        
+        Parameters
+        ----------
+        x : array_like
+            Input array.
+            
+        Returns
+        -------
+        array_like
+            Transformed array.
+        """
         if len(x.shape) == 1:
             return self.u @ (np.pad(x, (0, self.n - self.rank)) * self.s_sqrt)
         else:
