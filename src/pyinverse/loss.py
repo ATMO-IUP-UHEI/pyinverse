@@ -74,14 +74,14 @@ class Bayesian:
         return measurement_loss + prior_loss
 
     def get_K(self):
-        cov_y_sqrt_inv = np.linalg.inv(np.cholesky(self.cov_y))
-        cov_prior_sqrt_inv = np.linalg.inv(np.cholesky(self.cov_prior))
+        cov_y_sqrt_inv = np.linalg.inv(np.linalg.cholesky(self.cov_y))
+        cov_prior_sqrt_inv = np.linalg.inv(np.linalg.cholesky(self.cov_prior))
         K_reg = np.append(cov_y_sqrt_inv @ self.K, cov_prior_sqrt_inv, axis=0)
         return K_reg
 
     def get_y(self):
-        cov_y_sqrt_inv = np.linalg.inv(np.cholesky(self.cov_y))
-        cov_prior_sqrt_inv = np.linalg.inv(np.cholesky(self.cov_prior))
+        cov_y_sqrt_inv = np.linalg.inv(np.linalg.cholesky(self.cov_y))
+        cov_prior_sqrt_inv = np.linalg.inv(np.linalg.cholesky(self.cov_prior))
         y_reg = np.append(
             cov_y_sqrt_inv @ self.y, cov_prior_sqrt_inv @ self.x_prior, axis=0
         )
