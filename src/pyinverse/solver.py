@@ -99,6 +99,30 @@ class BayesianAnalyticalYM_Base:
         self._hqh = None
         self._hq = None
         self._hx_prior = None
+        self._gain = None
+        self._x_posterior = None
+
+    @property
+    def gain(self) -> np.ndarray:
+        if self._gain is None:
+            self._gain = (
+                np.tensordot(
+                    self.hq,
+                    np.linalg.inv(self.hqh + self.loss.measurement_covariance),
+                    axes=([0], [0])
+                )
+            )
+        return self._gain
+    
+    @property
+    def x_posterior(self) -> np.ndarray:
+        if self._x_posterior is None:
+            self._x_posterior = self.loss.prior + np.tensordot(
+                self.gain, 
+                self.loss.measurement - self.hx_prior,
+                axes=([2], [0])
+            )
+        return self._x_posterior
 
     @property
     def hqh(self):
@@ -159,10 +183,12 @@ class BayesianAnalyticalYM_Base:
 
     @property
     def hx_prior(self):
-        pass
+        if self._hx_prior is None:
+            self._hx_prior = np.tensordot(self.loss.forward_model, self.loss.prior, axes=([1, 2], [0, 1]))
+        return self._hx_prior
     
     def __call__(self) -> Tuple[np.ndarray, np.ndarray]:
-        pass
+        return self.x_posterior
 
 class BayesianAnalyticalYM_Sparse(BayesianAnalyticalYM_Base):
     def __init__(
@@ -256,11 +282,6 @@ class BayesianAnalyticalYM_Sparse(BayesianAnalyticalYM_Base):
             forward_model.coords[2],
             forward_model.shape
         )
-
-
-    @property
-    def hx_prior(self):
-        pass
         
 class BayesianAnalyticalYM:
     def __init__(
