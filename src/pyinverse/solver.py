@@ -271,6 +271,6 @@ class BayesianAnalyticalYM:
         if isinstance(loss.forward_model, np.ndarray):
             self.solver = BayesianAnalyticalYM_Base(loss)
         elif isinstance(loss.forward_model, sparse.COO):
-            self.solver = BayesianAnalytivalYM_Sparse(loss)
+            self.solver = BayesianAnalyticalYM_Sparse(loss)
         else:
             raise TypeError(f"Unsupported forward model type in loss: {type(loss.forward_model)}")
