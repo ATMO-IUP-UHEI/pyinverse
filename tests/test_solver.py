@@ -177,7 +177,7 @@ class Test_BayesianAnalyticalYM_Sparse:
         assert np.allclose(hqh, hqh_expected, atol=0, rtol=1e-4)
 
     def test_hq_hqh(self, bayesianloss_ym_sparse: BayesianYM):
-        solver = BayesianAnalytivalYM_Sparse(bayesianloss_ym_sparse)
+        solver = BayesianAnalyticalYM_Sparse(bayesianloss_ym_sparse)
         hq = solver.hq
         hqh = solver.hqh
         footprint = bayesianloss_ym_sparse.forward_model.todense()
