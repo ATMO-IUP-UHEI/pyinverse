@@ -164,7 +164,7 @@ class BayesianAnalyticalYM_Base:
     def __call__(self) -> Tuple[np.ndarray, np.ndarray]:
         pass
 
-class BayesianAnalytivalYM_Sparse(BayesianAnalyticalYM_Base):
+class BayesianAnalyticalYM_Sparse(BayesianAnalyticalYM_Base):
     def __init__(
         self,
         loss: BayesianYM
@@ -198,9 +198,10 @@ class BayesianAnalytivalYM_Sparse(BayesianAnalyticalYM_Base):
     @njit
     def compute_hq_and_hqh(
         forward_model_data: np.ndarray,
-        forward_model_rows: np.ndarray,
-        forward_model_columns: np.ndarray,
-        forward_model_shape: np.ndarray, 
+        measurement_coordinates: np.ndarray,
+        temporal_coordinates: np.ndarray,
+        spatial_coordinates: np.ndarray, 
+        forward_model_shape: np.ndarray,
         temporal_correlation: np.ndarray, 
         spatial_correlation: np.ndarray, 
         standard_deviation: np.ndarray,
@@ -209,15 +210,19 @@ class BayesianAnalytivalYM_Sparse(BayesianAnalyticalYM_Base):
         hq_result = np.zeros((measurement_shape, time_shape, space_shape), dtype=np.float32)
         hqh_result = np.zeros((measurement_shape, measurement_shape), dtype=np.float32)
         
-        for j in range(time_shape):
+        unique_temporal_coordinates = np.unique(temporal_coordinates)
+        for j in unique_temporal_coordinates:
             partial_result  = np.zeros((measurement_shape, space_shape), dtype=np.float32)
-            for i in range(time_shape):
+            for i in unique_temporal_coordinates:
+                
                 temporal_correlation_ij = temporal_correlation[i, j]
                 if temporal_correlation_ij == 0:
                     continue
-                forward_model_data_i = forward_model_data[i]
-                forward_model_rows_i = forward_model_rows[i]
-                forward_model_columns_i = forward_model_columns[i]
+
+                forward_model_data_i = forward_model_data[temporal_coordinates == i]
+                forward_model_rows_i = measurement_coordinates[temporal_coordinates == i]
+                forward_model_columns_i = spatial_coordinates[temporal_coordinates == i]
+
                 for k in prange(len(forward_model_data_i)):
                     forward_model_value = forward_model_data_i[k]
                     forward_model_row = forward_model_rows_i[k]
@@ -230,32 +235,26 @@ class BayesianAnalytivalYM_Sparse(BayesianAnalyticalYM_Base):
 
             hq_result[:, j, :] = partial_result
 
-            forward_model_data_j = forward_model_data[j]
-            forward_model_rows_j = forward_model_rows[j]
-            forward_model_columns_j = forward_model_columns[j]
+            forward_model_data_j = forward_model_data[temporal_coordinates == j]
+            forward_model_rows_j = measurement_coordinates[temporal_coordinates == j]
+            forward_model_columns_j = spatial_coordinates[temporal_coordinates == j]
             for k in range(len(forward_model_data_j)):
                 forward_model_value = forward_model_data_j[k]
                 forward_model_row = forward_model_rows_j[k]
                 forward_model_column = forward_model_columns_j[k]
-                for l in range(measurement_shape):
+                for l in prange(measurement_shape):
                     hqh_result[l, forward_model_row] += partial_result[l, forward_model_column] * forward_model_value
 
         return hq_result, hqh_result
 
     @staticmethod
-    def extract_sparse_data(forward_model: sparse.COO) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-        data_list, row_list, col_list = [], [], []
-        shape = forward_model.shape
-        for i in range(forward_model.shape[1]):
-            forward_model_i = forward_model[:, i, :]  # Slice out the H_i block for the i-th position
-            data_list.append(forward_model_i.data)        # Non-zero values
-            row_list.append(forward_model_i.coords[0])    # Row indices of non-zero values
-            col_list.append(forward_model_i.coords[1])    # Column indices of non-zero values
+    def extract_sparse_data(forward_model: sparse.COO) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         return (
-            np.array(data_list, dtype=np.float32), 
-            np.array(row_list, dtype=np.float32), 
-            np.array(col_list, dtype=np.float32), 
-            np.array(shape, dtype=int)
+            forward_model.data,
+            forward_model.coords[0],
+            forward_model.coords[1],
+            forward_model.coords[2],
+            forward_model.shape
         )
 
 

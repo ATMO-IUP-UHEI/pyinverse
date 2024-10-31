@@ -1,4 +1,4 @@
-from pyinverse.solver import LSTSQ, BayesianAnalytical, BayesianAnalyticalYM_Base, BayesianAnalytivalYM_Sparse
+from pyinverse.solver import LSTSQ, BayesianAnalytical, BayesianAnalyticalYM_Base, BayesianAnalyticalYM_Sparse
 from pyinverse.loss import Bayesian, BayesianYM
 import numpy as np
 import sparse
@@ -46,14 +46,19 @@ def bayesianloss_ym():
 
 @pytest.fixture
 def compute_hq_and_hqh_args(bayesianloss_ym: BayesianYM):
-    footprint_values = [bayesianloss_ym.forward_model[:, i, :].flatten() for i in range(bayesianloss_ym.forward_model.shape[1])]
-    footprint_rows, footprint_cols = [], []
-    for i in range(bayesianloss_ym.forward_model.shape[1]):
-        footprint_col, footprint_row  = np.meshgrid(np.arange(bayesianloss_ym.forward_model.shape[2]), np.arange(bayesianloss_ym.forward_model.shape[0]))
-        footprint_rows.append(footprint_row.flatten())
-        footprint_cols.append(footprint_col.flatten())
-    footprint_shape = bayesianloss_ym.forward_model.shape
-    return np.array(footprint_values), np.array(footprint_rows), np.array(footprint_cols), footprint_shape
+    footprint_values = bayesianloss_ym.forward_model.flatten()
+    dummy = np.ones(bayesianloss_ym.forward_model.shape, dtype=int)
+    measurement_coordinates = (np.arange(10, dtype=int)[:, None, None] * dummy).flatten()
+    time_coordinates = (np.arange(8, dtype=int)[None, :, None] * dummy).flatten()
+    space_coordinates = (np.arange(7, dtype=int)[None, None, :] * dummy).flatten()
+    footprint_shape = np.array(bayesianloss_ym.forward_model.shape)
+    return (
+        footprint_values, 
+        measurement_coordinates, 
+        time_coordinates, 
+        space_coordinates, 
+        footprint_shape
+    )
 
 
 @pytest.fixture
@@ -150,9 +155,9 @@ class Test_BayesianAnalyticalYM_Base:
         assert np.allclose(hq, hq_expected, atol=0, rtol=1e-4)
         assert np.allclose(hqh, hqh_expected, atol=0, rtol=1e-4)
     
-class Test_BayesianAnalytivalYM_Sparse:
+class Test_BayesianAnalyticalYM_Sparse:
     def test_compute_hq_and_hqh(self, compute_hq_and_hqh_args, bayesianloss_ym: BayesianYM):
-        hq, hqh = BayesianAnalytivalYM_Sparse.compute_hq_and_hqh(
+        hq, hqh = BayesianAnalyticalYM_Sparse.compute_hq_and_hqh(
             *compute_hq_and_hqh_args, 
             bayesianloss_ym.prior_temporal_correlation,
             bayesianloss_ym.prior_spatial_correlation,
