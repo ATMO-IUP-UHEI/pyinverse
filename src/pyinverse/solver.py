@@ -1,6 +1,10 @@
 import numpy as np
-from pyinverse.loss import Bayesian
-from typing import Tuple
+import sparse
+
+from pyinverse.loss import Bayesian, BayesianYM
+from typing import Tuple, List
+from numba import njit, prange
+
 
 
 class LSTSQ:
@@ -82,3 +86,192 @@ class BayesianAnalytical:
 
     def __call__(self) -> Tuple[np.ndarray, np.ndarray]:
         return self.x_posterior, self.cov_posterior
+
+ 
+
+
+class BayesianAnalyticalYM_Base:
+    def __init__(
+        self,
+        loss: BayesianYM
+    ) -> None:
+        self.loss = loss
+        self._hqh = None
+        self._hq = None
+        self._hx_prior = None
+
+    @property
+    def hqh(self):
+        if self._hqh is None:
+            self._hq, self._hqh = self.compute_hq_and_hqh(
+                self.loss.forward_model,
+                self.loss.prior_temporal_correlation,
+                self.loss.prior_spatial_correlation,
+                self.loss.prior_standard_deviation,
+            )
+        return self._hqh
+
+    @property
+    def hq(self):
+        if self._hq is None:
+            self._hq, self._hqh = self.compute_hq_and_hqh(
+                self.loss.forward_model,
+                self.loss.prior_temporal_correlation,
+                self.loss.prior_spatial_correlation,
+                self.loss.prior_standard_deviation,
+            )
+        return self._hq
+
+    @staticmethod
+    @njit
+    def compute_hq_and_hqh(
+        forward_model: np.ndarray, 
+        temporal_correlation: np.ndarray, 
+        spatial_correlation: np.ndarray, 
+        standard_deviation: np.ndarray,
+    ) -> np.ndarray:
+
+        measurement_shape, time_shape, space_shape = forward_model.shape
+
+        hq_result = np.zeros((measurement_shape, time_shape, space_shape), dtype=np.float32)
+        hqh_result = np.zeros((measurement_shape, measurement_shape), dtype=np.float32)
+        for j in range(time_shape):
+            partial_result  = np.zeros((measurement_shape, space_shape), dtype=np.float32)
+            for i in range(time_shape):
+                temporal_correlation_ij = temporal_correlation[i, j]
+                if temporal_correlation_ij == 0:
+                    continue
+                partial_result += forward_model[:, i, :] * temporal_correlation_ij * standard_deviation[i]
+
+            partial_result = np.dot(
+                partial_result,
+                spatial_correlation * standard_deviation[j]
+            )
+
+            hq_result[:, j, :] = partial_result
+
+            hqh_result += np.dot(
+                partial_result,
+                forward_model[:, j, :].T
+            )
+
+        return hq_result, hqh_result
+
+    @property
+    def hx_prior(self):
+        pass
+    
+    def __call__(self) -> Tuple[np.ndarray, np.ndarray]:
+        pass
+
+class BayesianAnalytivalYM_Sparse(BayesianAnalyticalYM_Base):
+    def __init__(
+        self,
+        loss: BayesianYM
+        ) -> None:
+        super().__init__(loss)
+
+
+    @property
+    def hqh(self):
+        if self._hqh is None:
+            self._hq, self._hqh = self.compute_hq_and_hqh(
+                *self.extract_sparse_data(self.loss.forward_model),
+                self.loss.prior_temporal_correlation,
+                self.loss.prior_spatial_correlation,
+                self.loss.prior_standard_deviation,
+            )
+        return self._hqh
+
+    @property
+    def hq(self):
+        if self._hq is None:
+            self._hq, self._hqh = self.compute_hq_and_hqh(
+                *self.extract_sparse_data(self.loss.forward_model),
+                self.loss.prior_temporal_correlation,
+                self.loss.prior_spatial_correlation,
+                self.loss.prior_standard_deviation,
+            )
+        return self._hq
+    
+    @staticmethod
+    @njit
+    def compute_hq_and_hqh(
+        forward_model_data: np.ndarray,
+        forward_model_rows: np.ndarray,
+        forward_model_columns: np.ndarray,
+        forward_model_shape: np.ndarray, 
+        temporal_correlation: np.ndarray, 
+        spatial_correlation: np.ndarray, 
+        standard_deviation: np.ndarray,
+    ) -> Tuple[np.ndarray, np.ndarray]:
+        measurement_shape, time_shape, space_shape = forward_model_shape
+        hq_result = np.zeros((measurement_shape, time_shape, space_shape), dtype=np.float32)
+        hqh_result = np.zeros((measurement_shape, measurement_shape), dtype=np.float32)
+        
+        for j in range(time_shape):
+            partial_result  = np.zeros((measurement_shape, space_shape), dtype=np.float32)
+            for i in range(time_shape):
+                temporal_correlation_ij = temporal_correlation[i, j]
+                if temporal_correlation_ij == 0:
+                    continue
+                forward_model_data_i = forward_model_data[i]
+                forward_model_rows_i = forward_model_rows[i]
+                forward_model_columns_i = forward_model_columns[i]
+                for k in prange(len(forward_model_data_i)):
+                    forward_model_value = forward_model_data_i[k]
+                    forward_model_row = forward_model_rows_i[k]
+                    forward_model_column = forward_model_columns_i[k]
+                    partial_result[forward_model_row, forward_model_column] += forward_model_value * temporal_correlation_ij * standard_deviation[i, forward_model_column]
+            partial_result = np.dot(
+                partial_result,
+                spatial_correlation * standard_deviation[j]
+            )
+
+            hq_result[:, j, :] = partial_result
+
+            forward_model_data_j = forward_model_data[j]
+            forward_model_rows_j = forward_model_rows[j]
+            forward_model_columns_j = forward_model_columns[j]
+            for k in range(len(forward_model_data_j)):
+                forward_model_value = forward_model_data_j[k]
+                forward_model_row = forward_model_rows_j[k]
+                forward_model_column = forward_model_columns_j[k]
+                for l in range(measurement_shape):
+                    hqh_result[l, forward_model_row] += partial_result[l, forward_model_column] * forward_model_value
+
+        return hq_result, hqh_result
+
+    @staticmethod
+    def extract_sparse_data(forward_model: sparse.COO) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+        data_list, row_list, col_list = [], [], []
+        shape = forward_model.shape
+        for i in range(forward_model.shape[1]):
+            forward_model_i = forward_model[:, i, :]  # Slice out the H_i block for the i-th position
+            data_list.append(forward_model_i.data)        # Non-zero values
+            row_list.append(forward_model_i.coords[0])    # Row indices of non-zero values
+            col_list.append(forward_model_i.coords[1])    # Column indices of non-zero values
+        return (
+            np.array(data_list, dtype=np.float32), 
+            np.array(row_list, dtype=np.float32), 
+            np.array(col_list, dtype=np.float32), 
+            np.array(shape, dtype=int)
+        )
+
+
+    @property
+    def hx_prior(self):
+        pass
+        
+class BayesianAnalyticalYM:
+    def __init__(
+        self,
+        loss: BayesianYM,
+    ) -> None:
+        self.loss = loss
+        if isinstance(loss.forward_model, np.ndarray):
+            self.solver = BayesianAnalyticalYM_Base(loss)
+        elif isinstance(loss.forward_model, sparse.COO):
+            self.solver = BayesianAnalytivalYM_Sparse(loss)
+        else:
+            raise TypeError(f"Unsupported forward model type in loss: {type(loss.forward_model)}")

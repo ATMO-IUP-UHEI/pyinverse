@@ -7,8 +7,9 @@ license = "MIT"
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = "^3.9"
+python = "^3.10"
 numpy = "^1.23.0"
+sparse = "^0.15.4"
 
 [tool.poetry.dev-dependencies]
 
@@ -17,7 +18,7 @@ pytest = "^7.2.2"
 pytest-cov = "^4.0.0"
 jupyter = "^1.0.0"
 matplotlib = "^3.7.1"
-myst-nb = {version = "^0.17.1", python = "^3.9"}
+myst-nb = {version = "^0.17.1", python = "^3.10"}
 sphinx-autoapi = "^2.0.1"
 sphinx-rtd-theme = "^1.2.0"
 black = "^23.3.0"
