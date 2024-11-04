@@ -100,6 +100,27 @@ class BayesianYM:
         measurement: np.ndarray,
         measurement_covariance: np.ndarray,
     ) -> None:
+        """
+        Bayesian loss function containing the information needed for the analytical
+        solution based on the implementation of Yadav and Michalak:
+        https://doi.org/10.5194/gmd-6-583-2013
+
+        t: temporal dimension of state space
+        s: spatial dimension of state space
+        n: number of measurements
+
+        Args:
+            prior (np.ndarray): Prior state (t, s)
+            prior_standard_deviation (np.ndarray): Prior standard deviation (t, s)
+            prior_temporal_correlation (np.ndarray): Temporal part of the correlation
+             matrix (t, t)
+            prior_spatial_correlation (np.ndarray): Spatial part of the correlation
+             matrix (s, s)
+            forward_model (np.ndarray | sparse.COO): Forward model (n, t, s)
+            measurement (np.ndarray): Measurements (n)
+            measurement_covariance (np.ndarray): Full covariance matrix of the
+             measurements (n, n)
+        """
         self.prior = prior
         self.prior_standard_deviation = prior_standard_deviation
         self.prior_temporal_correlation = prior_temporal_correlation
