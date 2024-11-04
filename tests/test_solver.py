@@ -1,4 +1,9 @@
-from pyinverse.solver import LSTSQ, BayesianAnalytical, BayesianAnalyticalYM_Base, BayesianAnalyticalYM_Sparse
+from pyinverse.solver import (
+    LSTSQ,
+    BayesianAnalytical,
+    BayesianAnalyticalYM_Base,
+    BayesianAnalyticalYM_Sparse,
+)
 from pyinverse.loss import Bayesian, BayesianYM
 import numpy as np
 import sparse
@@ -20,6 +25,7 @@ def bayesianloss():
     loss = Bayesian(y=y, cov_y=cov_y, K=K, x_prior=x_prior, cov_prior=cov_prior)
     return loss
 
+
 @pytest.fixture
 def bayesianloss_ym():
     rng = np.random.default_rng(seed=0)
@@ -40,24 +46,27 @@ def bayesianloss_ym():
         prior_spatial_correlation=prior_spatial_correlation,
         forward_model=forward_model,
         measurement=measurement,
-        measurement_covariance=measurement_covariance
+        measurement_covariance=measurement_covariance,
     )
     return loss
+
 
 @pytest.fixture
 def compute_hq_and_hqh_args(bayesianloss_ym: BayesianYM):
     footprint_values = bayesianloss_ym.forward_model.flatten()
     dummy = np.ones(bayesianloss_ym.forward_model.shape, dtype=int)
-    measurement_coordinates = (np.arange(10, dtype=int)[:, None, None] * dummy).flatten()
+    measurement_coordinates = (
+        np.arange(10, dtype=int)[:, None, None] * dummy
+    ).flatten()
     time_coordinates = (np.arange(8, dtype=int)[None, :, None] * dummy).flatten()
     space_coordinates = (np.arange(7, dtype=int)[None, None, :] * dummy).flatten()
     footprint_shape = np.array(bayesianloss_ym.forward_model.shape)
     return (
-        footprint_values, 
-        measurement_coordinates, 
-        time_coordinates, 
-        space_coordinates, 
-        footprint_shape
+        footprint_values,
+        measurement_coordinates,
+        time_coordinates,
+        space_coordinates,
+        footprint_shape,
     )
 
 
@@ -71,7 +80,9 @@ def bayesianloss_ym_sparse():
     prior_standard_deviation = rng.normal(size=(m_t, m_s)).astype(np.float32)
     prior_temporal_correlation = rng.normal(size=(m_t, m_t)).astype(np.float32)
     prior_spatial_correlation = rng.normal(size=(m_s, m_s)).astype(np.float32)
-    forward_model = sparse.random((n, m_t, m_s), density=0.1, format='coo', random_state=0).astype(np.float32)
+    forward_model = sparse.random(
+        (n, m_t, m_s), density=0.1, format="coo", random_state=0
+    ).astype(np.float32)
     measurement = rng.normal(size=n).astype(np.float32)
     measurement_covariance = rng.normal(size=(n, n)).astype(np.float32)
     loss = BayesianYM(
@@ -81,7 +92,7 @@ def bayesianloss_ym_sparse():
         prior_spatial_correlation=prior_spatial_correlation,
         forward_model=forward_model,
         measurement=measurement,
-        measurement_covariance=measurement_covariance
+        measurement_covariance=measurement_covariance,
     )
     return loss
 
@@ -138,6 +149,7 @@ def test_bayesian_analytical(bayesianloss: Bayesian):
     with pytest.raises(TypeError):
         solver = BayesianAnalytical(dummyloss)
 
+
 class Test_BayesianAnalyticalYM_Base:
     def test_hq_hqh(self, bayesianloss_ym: BayesianYM):
         solver = BayesianAnalyticalYM_Base(bayesianloss_ym)
@@ -151,14 +163,19 @@ class Test_BayesianAnalyticalYM_Base:
             * bayesianloss_ym.prior_standard_deviation[None, None, ...]
         )
         hq_expected = np.tensordot(footprint, prior_covariance, axes=([1, 2], [0, 1]))
-        hqh_expected = np.tensordot(hq_expected, footprint.transpose((1,2,0)), axes=([1, 2], [0,1]))
+        hqh_expected = np.tensordot(
+            hq_expected, footprint.transpose((1, 2, 0)), axes=([1, 2], [0, 1])
+        )
         assert np.allclose(hq, hq_expected, atol=0, rtol=1e-4)
         assert np.allclose(hqh, hqh_expected, atol=0, rtol=1e-4)
-    
+
+
 class Test_BayesianAnalyticalYM_Sparse:
-    def test_compute_hq_and_hqh(self, compute_hq_and_hqh_args, bayesianloss_ym: BayesianYM):
+    def test_compute_hq_and_hqh(
+        self, compute_hq_and_hqh_args, bayesianloss_ym: BayesianYM
+    ):
         hq, hqh = BayesianAnalyticalYM_Sparse.compute_hq_and_hqh(
-            *compute_hq_and_hqh_args, 
+            *compute_hq_and_hqh_args,
             bayesianloss_ym.prior_temporal_correlation,
             bayesianloss_ym.prior_spatial_correlation,
             bayesianloss_ym.prior_standard_deviation
@@ -172,7 +189,9 @@ class Test_BayesianAnalyticalYM_Sparse:
             * bayesianloss_ym.prior_standard_deviation[None, None, ...]
         )
         hq_expected = np.tensordot(footprint, prior_covariance, axes=([1, 2], [0, 1]))
-        hqh_expected = np.tensordot(hq_expected, footprint.transpose((1,2,0)), axes=([1, 2], [0,1]))
+        hqh_expected = np.tensordot(
+            hq_expected, footprint.transpose((1, 2, 0)), axes=([1, 2], [0, 1])
+        )
         assert np.allclose(hq, hq_expected, atol=0, rtol=1e-4)
         assert np.allclose(hqh, hqh_expected, atol=0, rtol=1e-4)
 
@@ -188,6 +207,8 @@ class Test_BayesianAnalyticalYM_Sparse:
             * bayesianloss_ym_sparse.prior_standard_deviation[None, None, ...]
         )
         hq_expected = np.tensordot(footprint, prior_covariance, axes=([1, 2], [0, 1]))
-        hqh_expected = np.tensordot(hq_expected, footprint.transpose((1,2,0)), axes=([1, 2], [0,1]))
+        hqh_expected = np.tensordot(
+            hq_expected, footprint.transpose((1, 2, 0)), axes=([1, 2], [0, 1])
+        )
         assert np.allclose(hq, hq_expected, atol=1e-7, rtol=1e-4)
         assert np.allclose(hqh, hqh_expected, atol=1e-7, rtol=1e-4)

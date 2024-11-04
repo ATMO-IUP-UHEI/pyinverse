@@ -56,10 +56,10 @@ def least_squares_test(x_pred, K, y, measurement_loss):
 def thikonov_test(x_pred, K, y, alpha, measurement_loss, regularization_loss):
     loss = Thikonov(y, K, alpha)
     assert np.allclose(measurement_loss + regularization_loss, loss(x_pred))
-    
+
     loss.get_y()
     loss.get_K()
-    
+
     # assert np.allclose(y, loss.get_y())
     # assert np.allclose(K, loss.get_K())
 
