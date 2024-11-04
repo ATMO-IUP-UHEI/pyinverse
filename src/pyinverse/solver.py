@@ -89,12 +89,25 @@ class BayesianAnalytical:
 
 class BayesianAnalyticalYM_Base:
     def __init__(self, loss: BayesianYM) -> None:
+        """
+        Analytical Bayesian inversion following Yadav and Michalak:
+
+        https://doi.org/10.5194/gmd-6-583-2013
+        Solves for posterior and its standard deviation based on the given loss.
+        Additionally grants access to the gain matrix.
+
+        Args:
+            loss (BayesianYM): Bayesian loss function that contains the prior, prior
+             standard deviation, spatial and temporal correlation, forward model,
+             measurement and measurement covariance
+        """
         self.loss = loss
         self._hqh = None
         self._hq = None
         self._hx_prior = None
         self._gain = None
         self._x_posterior = None
+        self._posterior_std = None
 
     @property
     def gain(self) -> np.ndarray:
@@ -182,12 +195,51 @@ class BayesianAnalyticalYM_Base:
             )
         return self._hx_prior
 
+    @property
+    def posterior_std(self) -> np.ndarray:
+        if self._posterior_std is None:
+            self._posterior_std = self.compute_posterior_std(
+                self.gain, self.hq, self.loss.prior_standard_deviation
+            )
+        return self._posterior_std
+
+    @staticmethod
+    @njit
+    def compute_posterior_std(
+        gain: np.ndarray,
+        hq: np.ndarray,
+        prior_std: np.ndarray,
+    ):
+        posterior_var = np.zeros_like(prior_std)
+        prior_var = np.square(prior_std)
+        # loop over temporal coordinates of result
+        for i_t in range(prior_std.shape[0]):
+            # loop over spatial coordinates of result
+            for i_s in range(prior_std.shape[1]):
+                gain_i = gain[i_t, i_s, :]
+                hq_i = hq[:, i_t, i_s]
+                posterior_var[i_t, i_s] = prior_var[i_t, i_s] - np.dot(gain_i, hq_i)
+        return np.sqrt(posterior_var)
+
     def __call__(self) -> np.ndarray:
-        return self.x_posterior
+        return self.x_posterior, self.posterior_std
 
 
 class BayesianAnalyticalYM_Sparse(BayesianAnalyticalYM_Base):
     def __init__(self, loss: BayesianYM) -> None:
+        """
+        Analytical Bayesian inversion following Yadav and Michalak with sparse forward
+        model:
+
+        https://doi.org/10.5194/gmd-6-583-2013
+        Solves for posterior and its standard deviation based on the given loss.
+        Additionally grants access to the gain matrix.
+
+        Args:
+            loss (BayesianYM): Bayesian loss function that contains the prior, prior
+             standard deviation, spatial and temporal correlation, forward model,
+             measurement and measurement covariance
+        """
         super().__init__(loss)
 
     @property
@@ -293,6 +345,19 @@ class BayesianAnalyticalYM:
         self,
         loss: BayesianYM,
     ) -> None:
+        """
+        Analytical Bayesian inversion following Yadav and Michalak:
+
+        https://doi.org/10.5194/gmd-6-583-2013
+        Solves for posterior and its standard deviation based on the given loss. Selects
+        the appropriate solver based on the forward model type. Additionally grants
+        access to the gain matrix via the solver.
+
+        Args:
+            loss (BayesianYM): Bayesian loss function that contains the prior, prior
+             standard deviation, spatial and temporal correlation, forward model,
+             measurement and measurement covariance
+        """
         self.loss = loss
         if isinstance(loss.forward_model, np.ndarray):
             self.solver = BayesianAnalyticalYM_Base(loss)

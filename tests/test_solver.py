@@ -97,6 +97,35 @@ def bayesianloss_ym_sparse():
     return loss
 
 
+@pytest.fixture
+def bayesianloss_ym_sensible():
+    n = 100
+    m_t = int(n / 10)
+    m_s = int(n / 10)
+    prior_diff_range = np.array([1, 2])
+    prior = np.linspace(*prior_diff_range, m_t * m_s, dtype=np.float32).reshape(
+        m_t, m_s
+    )
+    prior_standard_deviation = np.linspace(
+        *(prior_diff_range - 1), m_t * m_s, dtype=np.float32
+    ).reshape(m_t, m_s)
+    prior_temporal_correlation = np.eye(m_t, dtype=np.float32)
+    prior_spatial_correlation = np.eye(m_s, dtype=np.float32)
+    forward_model = np.eye(n, dtype=np.float32).reshape((n, m_t, m_s))
+    measurement = np.ones(n, dtype=np.float32)
+    measurement_covariance = 1 * np.eye(n, dtype=np.float32)
+    loss = BayesianYM(
+        prior=prior,
+        prior_standard_deviation=prior_standard_deviation,
+        prior_temporal_correlation=prior_temporal_correlation,
+        prior_spatial_correlation=prior_spatial_correlation,
+        forward_model=forward_model,
+        measurement=measurement,
+        measurement_covariance=measurement_covariance,
+    )
+    return loss
+
+
 class DummyLoss:
     def __init__(self, K, y):
         self.K = K
@@ -169,6 +198,45 @@ class Test_BayesianAnalyticalYM_Base:
         assert np.allclose(hq, hq_expected, atol=0, rtol=1e-4)
         assert np.allclose(hqh, hqh_expected, atol=0, rtol=1e-4)
 
+    def test_compute_posterior_std(self, bayesianloss_ym_sensible: BayesianYM):
+        solver = BayesianAnalyticalYM_Base(bayesianloss_ym_sensible)
+        std_posterior = solver.compute_posterior_std(
+            solver.gain, solver.hq, solver.loss.prior_standard_deviation
+        )
+        prior_covariance = (
+            bayesianloss_ym_sensible.prior_temporal_correlation[:, None, :, None]
+            * bayesianloss_ym_sensible.prior_spatial_correlation[None, :, None, :]
+            * bayesianloss_ym_sensible.prior_standard_deviation[..., None, None]
+            * bayesianloss_ym_sensible.prior_standard_deviation[None, None, ...]
+        )
+        expected_posterior_cov = prior_covariance - np.tensordot(
+            solver.gain, solver.hq, axes=([2], [0])
+        )
+        expected_posterior_std = np.zeros_like(
+            bayesianloss_ym_sensible.prior_standard_deviation
+        )
+        for i in range(expected_posterior_cov.shape[0]):
+            for j in range(expected_posterior_cov.shape[1]):
+                expected_posterior_std[i, j] = np.sqrt(
+                    expected_posterior_cov[i, j, i, j]
+                )
+
+        assert (
+            std_posterior.shape
+            == bayesianloss_ym_sensible.prior_standard_deviation.shape
+        )
+        assert np.all(std_posterior[~np.isnan(std_posterior)] >= 0)
+        assert np.allclose(std_posterior, expected_posterior_std, atol=1e-7, rtol=1e-4)
+
+    def test_call(self, bayesianloss_ym_sensible):
+        solver = BayesianAnalyticalYM_Base(bayesianloss_ym_sensible)
+        x_posterior, std_posterior = solver()
+        assert x_posterior.shape == bayesianloss_ym_sensible.prior.shape
+        assert (
+            std_posterior.shape
+            == bayesianloss_ym_sensible.prior_standard_deviation.shape
+        )
+
 
 class Test_BayesianAnalyticalYM_Sparse:
     def test_compute_hq_and_hqh(
@@ -212,3 +280,48 @@ class Test_BayesianAnalyticalYM_Sparse:
         )
         assert np.allclose(hq, hq_expected, atol=1e-7, rtol=1e-4)
         assert np.allclose(hqh, hqh_expected, atol=1e-7, rtol=1e-4)
+
+    def test_compute_posterior_std(self, bayesianloss_ym_sensible: BayesianYM):
+        bayesianloss_ym_sensible.forward_model = sparse.COO.from_numpy(
+            bayesianloss_ym_sensible.forward_model
+        )
+        solver = BayesianAnalyticalYM_Sparse(bayesianloss_ym_sensible)
+        std_posterior = solver.compute_posterior_std(
+            solver.gain, solver.hq, solver.loss.prior_standard_deviation
+        )
+        prior_covariance = (
+            bayesianloss_ym_sensible.prior_temporal_correlation[:, None, :, None]
+            * bayesianloss_ym_sensible.prior_spatial_correlation[None, :, None, :]
+            * bayesianloss_ym_sensible.prior_standard_deviation[..., None, None]
+            * bayesianloss_ym_sensible.prior_standard_deviation[None, None, ...]
+        )
+        expected_posterior_cov = prior_covariance - np.tensordot(
+            solver.gain, solver.hq, axes=([2], [0])
+        )
+        expected_posterior_std = np.zeros_like(
+            bayesianloss_ym_sensible.prior_standard_deviation
+        )
+        for i in range(expected_posterior_cov.shape[0]):
+            for j in range(expected_posterior_cov.shape[1]):
+                expected_posterior_std[i, j] = np.sqrt(
+                    expected_posterior_cov[i, j, i, j]
+                )
+
+        assert (
+            std_posterior.shape
+            == bayesianloss_ym_sensible.prior_standard_deviation.shape
+        )
+        assert np.all(std_posterior[~np.isnan(std_posterior)] >= 0)
+        assert np.allclose(std_posterior, expected_posterior_std, atol=1e-7, rtol=1e-4)
+
+    def test_call(self, bayesianloss_ym_sensible):
+        bayesianloss_ym_sensible.forward_model = sparse.COO.from_numpy(
+            bayesianloss_ym_sensible.forward_model
+        )
+        solver = BayesianAnalyticalYM_Sparse(bayesianloss_ym_sensible)
+        x_posterior, std_posterior = solver()
+        assert x_posterior.shape == bayesianloss_ym_sensible.prior.shape
+        assert (
+            std_posterior.shape
+            == bayesianloss_ym_sensible.prior_standard_deviation.shape
+        )
