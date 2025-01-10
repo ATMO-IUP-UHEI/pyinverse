@@ -1,4 +1,4 @@
-name: pyinverse2
+name: pyinverse
 channels:
   - conda-forge
 dependencies:
