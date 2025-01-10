@@ -94,7 +94,10 @@ class BayesianAnalyticalYM_Base:
 
         https://doi.org/10.5194/gmd-6-583-2013
         Solves for posterior and its standard deviation based on the given loss.
-        Additionally grants access to the gain matrix.
+        Additionally grants access to the gain matrix. Variable names follow the paper:
+        h: forward model
+        q: prior cvariance matrix
+        x: state vector
 
         Args:
             loss (BayesianYM): Bayesian loss function that contains the prior, prior
@@ -157,6 +160,19 @@ class BayesianAnalyticalYM_Base:
         spatial_correlation: np.ndarray,
         standard_deviation: np.ndarray,
     ) -> np.ndarray:
+        """ 
+        Compute hq and hqh matrices for the given forward model, correlations and 
+            standard deviation
+        
+        Args:
+            forward_model (np.ndarray): forward model
+            temporal_correlation (np.ndarray): temporal correlation
+            spatial_correlation (np.ndarray): spatial correlation
+            standard_deviation (np.ndarray): standard deviation
+            
+        Returns:
+            tuple[np.ndarray, np.ndarray]: hq and hqh matrices
+        """
         measurement_shape, time_shape, space_shape = forward_model.shape
 
         hq_result = np.zeros(
@@ -183,7 +199,10 @@ class BayesianAnalyticalYM_Base:
 
             hq_result[:, j, :] = partial_result
 
-            hqh_result += np.dot(partial_result, forward_model[:, j, :].T)
+            hqh_result += np.dot(
+                partial_result, 
+                np.ascontiguousarray(forward_model[:, j, :].T)
+            )
 
         return hq_result, hqh_result
 
@@ -216,12 +235,12 @@ class BayesianAnalyticalYM_Base:
         for i_t in range(prior_std.shape[0]):
             # loop over spatial coordinates of result
             for i_s in range(prior_std.shape[1]):
-                gain_i = gain[i_t, i_s, :]
-                hq_i = hq[:, i_t, i_s]
+                gain_i = np.ascontiguousarray(gain[i_t, i_s, :])
+                hq_i = np.ascontiguousarray(hq[:, i_t, i_s])
                 posterior_var[i_t, i_s] = prior_var[i_t, i_s] - np.dot(gain_i, hq_i)
         return np.sqrt(posterior_var)
 
-    def __call__(self) -> np.ndarray:
+    def __call__(self) -> tuple[np.ndarray, np.ndarray]:
         return self.x_posterior, self.posterior_std
 
 
@@ -233,7 +252,10 @@ class BayesianAnalyticalYM_Sparse(BayesianAnalyticalYM_Base):
 
         https://doi.org/10.5194/gmd-6-583-2013
         Solves for posterior and its standard deviation based on the given loss.
-        Additionally grants access to the gain matrix.
+        Additionally grants access to the gain matrix. Variable names follow the paper:
+        h: forward model
+        q: prior cvariance matrix
+        x: state vector
 
         Args:
             loss (BayesianYM): Bayesian loss function that contains the prior, prior
@@ -276,6 +298,26 @@ class BayesianAnalyticalYM_Sparse(BayesianAnalyticalYM_Base):
         spatial_correlation: np.ndarray,
         standard_deviation: np.ndarray,
     ) -> Tuple[np.ndarray, np.ndarray]:
+        """
+        Compute hq and hqh matrices for a sparse forward model.
+
+        Args:
+            forward_model_data (np.ndarray): 1D array of forward model values
+            measurement_coordinates (np.ndarray): 1D array of measurement coordinates for 
+                each forward model value
+            temporal_coordinates (np.ndarray): 1D array of temporal coordinates for each
+                forward model value
+            spatial_coordinates (np.ndarray): 1D array of spatial coordinates for each
+                forward model value
+            forward_model_shape (np.ndarray): Shape of the forward model
+            temporal_correlation (np.ndarray): Temporal correlation of emissions
+            spatial_correlation (np.ndarray): Spatial correlation of emissions
+            standard_deviation (np.ndarray): Standard deviation of emissions
+
+        Returns:
+            tuple[np.ndarray, np.ndarray]: hq and hqh matrices
+        """
+
         measurement_shape, time_shape, space_shape = forward_model_shape
         hq_result = np.zeros(
             (measurement_shape, time_shape, space_shape), dtype=np.float32
@@ -351,7 +393,10 @@ class BayesianAnalyticalYM:
         https://doi.org/10.5194/gmd-6-583-2013
         Solves for posterior and its standard deviation based on the given loss. Selects
         the appropriate solver based on the forward model type. Additionally grants
-        access to the gain matrix via the solver.
+        access to the gain matrix via the solver. Variable names follow the paper:
+        h: forward model
+        q: prior cvariance matrix
+        x: state vector
 
         Args:
             loss (BayesianYM): Bayesian loss function that contains the prior, prior
@@ -365,7 +410,8 @@ class BayesianAnalyticalYM:
             self.solver = BayesianAnalyticalYM_Sparse(loss)
         else:
             raise TypeError(
-                f"Unsupported forward model type in loss: {type(loss.forward_model)} use either np.ndarray or sparse.COO"
+                f"Unsupported forward model type in loss: {type(loss.forward_model)} use"
+                " either np.ndarray or sparse.COO"
             )
 
     def __call__(self) -> np.ndarray:

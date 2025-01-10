@@ -3,6 +3,7 @@ from pyinverse.solver import (
     BayesianAnalytical,
     BayesianAnalyticalYM_Base,
     BayesianAnalyticalYM_Sparse,
+    BayesianAnalyticalYM,
 )
 from pyinverse.loss import Bayesian, BayesianYM
 import numpy as np
@@ -198,6 +199,35 @@ class Test_BayesianAnalyticalYM_Base:
         assert np.allclose(hq, hq_expected, atol=0, rtol=1e-4)
         assert np.allclose(hqh, hqh_expected, atol=0, rtol=1e-4)
 
+    def test_hq(self, bayesianloss_ym):
+        solver = BayesianAnalyticalYM_Base(bayesianloss_ym)
+        hq = solver.hq
+        footprint = bayesianloss_ym.forward_model
+        prior_covariance = (
+            bayesianloss_ym.prior_temporal_correlation[:, None, :, None]
+            * bayesianloss_ym.prior_spatial_correlation[None, :, None, :]
+            * bayesianloss_ym.prior_standard_deviation[..., None, None]
+            * bayesianloss_ym.prior_standard_deviation[None, None, ...]
+        )
+        hq_expected = np.tensordot(footprint, prior_covariance, axes=([1, 2], [0, 1]))
+        assert np.allclose(hq, hq_expected, atol=0, rtol=1e-4)
+
+    def test_hqh(self, bayesianloss_ym):
+        solver = BayesianAnalyticalYM_Base(bayesianloss_ym)
+        hqh = solver.hqh
+        footprint = bayesianloss_ym.forward_model
+        prior_covariance = (
+            bayesianloss_ym.prior_temporal_correlation[:, None, :, None]
+            * bayesianloss_ym.prior_spatial_correlation[None, :, None, :]
+            * bayesianloss_ym.prior_standard_deviation[..., None, None]
+            * bayesianloss_ym.prior_standard_deviation[None, None, ...]
+        )
+        hq_expected = np.tensordot(footprint, prior_covariance, axes=([1, 2], [0, 1]))
+        hqh_expected = np.tensordot(
+            hq_expected, footprint.transpose((1, 2, 0)), axes=([1, 2], [0, 1])
+        )
+        assert np.allclose(hqh, hqh_expected, atol=0, rtol=1e-4)
+
     def test_compute_posterior_std(self, bayesianloss_ym_sensible: BayesianYM):
         solver = BayesianAnalyticalYM_Base(bayesianloss_ym_sensible)
         std_posterior = solver.compute_posterior_std(
@@ -281,6 +311,35 @@ class Test_BayesianAnalyticalYM_Sparse:
         assert np.allclose(hq, hq_expected, atol=1e-7, rtol=1e-4)
         assert np.allclose(hqh, hqh_expected, atol=1e-7, rtol=1e-4)
 
+    def test_hq(self, bayesianloss_ym_sparse):
+        solver = BayesianAnalyticalYM_Sparse(bayesianloss_ym_sparse)
+        hq = solver.hq
+        footprint = bayesianloss_ym_sparse.forward_model.todense()
+        prior_covariance = (
+            bayesianloss_ym_sparse.prior_temporal_correlation[:, None, :, None]
+            * bayesianloss_ym_sparse.prior_spatial_correlation[None, :, None, :]
+            * bayesianloss_ym_sparse.prior_standard_deviation[..., None, None]
+            * bayesianloss_ym_sparse.prior_standard_deviation[None, None, ...]
+        )
+        hq_expected = np.tensordot(footprint, prior_covariance, axes=([1, 2], [0, 1]))
+        assert np.allclose(hq, hq_expected, atol=1e-7, rtol=1e-4)
+
+    def test_hqh(self, bayesianloss_ym_sparse):
+        solver = BayesianAnalyticalYM_Sparse(bayesianloss_ym_sparse)
+        hqh = solver.hqh
+        footprint = bayesianloss_ym_sparse.forward_model.todense()
+        prior_covariance = (
+            bayesianloss_ym_sparse.prior_temporal_correlation[:, None, :, None]
+            * bayesianloss_ym_sparse.prior_spatial_correlation[None, :, None, :]
+            * bayesianloss_ym_sparse.prior_standard_deviation[..., None, None]
+            * bayesianloss_ym_sparse.prior_standard_deviation[None, None, ...]
+        )
+        hq_expected = np.tensordot(footprint, prior_covariance, axes=([1, 2], [0, 1]))
+        hqh_expected = np.tensordot(
+            hq_expected, footprint.transpose((1, 2, 0)), axes=([1, 2], [0, 1])
+        )
+        assert np.allclose(hqh, hqh_expected, atol=1e-7, rtol=1e-4)
+
     def test_compute_posterior_std(self, bayesianloss_ym_sensible: BayesianYM):
         bayesianloss_ym_sensible.forward_model = sparse.COO.from_numpy(
             bayesianloss_ym_sensible.forward_model
@@ -319,6 +378,29 @@ class Test_BayesianAnalyticalYM_Sparse:
             bayesianloss_ym_sensible.forward_model
         )
         solver = BayesianAnalyticalYM_Sparse(bayesianloss_ym_sensible)
+        x_posterior, std_posterior = solver()
+        assert x_posterior.shape == bayesianloss_ym_sensible.prior.shape
+        assert (
+            std_posterior.shape
+            == bayesianloss_ym_sensible.prior_standard_deviation.shape
+        )
+
+class Test_BayesianAnalyticalYM:
+    def test_sparse_init(self, bayesianloss_ym_sparse):
+        solver = BayesianAnalyticalYM(bayesianloss_ym_sparse)
+        assert isinstance(solver.solver, BayesianAnalyticalYM_Sparse)
+        
+    def test_base_init(self, bayesianloss_ym_sensible):
+        solver = BayesianAnalyticalYM(bayesianloss_ym_sensible)
+        assert isinstance(solver.solver, BayesianAnalyticalYM_Base)
+
+    def test_invalid_init(self, bayesianloss_ym_sensible):
+        bayesianloss_ym_sensible.forward_model = []
+        with pytest.raises(TypeError):
+            solver = BayesianAnalyticalYM(bayesianloss_ym_sensible)
+    
+    def test_call(self, bayesianloss_ym_sensible):
+        solver = BayesianAnalyticalYM(bayesianloss_ym_sensible)
         x_posterior, std_posterior = solver()
         assert x_posterior.shape == bayesianloss_ym_sensible.prior.shape
         assert (

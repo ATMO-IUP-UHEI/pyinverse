@@ -131,49 +131,63 @@ class BayesianYM:
         self.check_shapes()
 
     def check_shapes(self):
-        assert len(self.prior.shape) == 2, "Prior should be a 2D array"
-        assert (
-            len(self.prior_standard_deviation.shape) == 2
-        ), "Prior standard deviation should be a 2D array"
-        assert (
-            len(self.prior_temporal_correlation.shape) == 2
-        ), "Prior temporal correlation should be a 2D array"
-        assert (
-            len(self.prior_spatial_correlation.shape) == 2
-        ), "Prior spatial correlation should be a 2D array"
-        assert len(self.forward_model.shape) == 3, "Forward model should be a 3D array"
-        assert len(self.measurement.shape) == 1, "Measurement should be a 1D array"
-        assert (
-            len(self.measurement_covariance.shape) == 2
-        ), "Measurement covariance should be a 2D array"
-
+        shape_problems = ""
+        if len(self.prior.shape) != 2:
+            shape_problems += "Prior should be a 2D array. "
+        if len(self.prior_standard_deviation.shape) != 2:
+            shape_problems += "Prior standard deviation should be a 2D array. "
+        if len(self.prior_temporal_correlation.shape) != 2:
+            shape_problems += "Prior temporal correlation should be a 2D array. "
+        if len(self.prior_spatial_correlation.shape) != 2:
+            shape_problems += "Prior spatial correlation should be a 2D array. "
+        if len(self.forward_model.shape) != 3:
+            shape_problems += "Forward model should be a 3D array. "
+        if len(self.measurement.shape) != 1:
+            shape_problems += "Measurement should be a 1D array. "
+        if len(self.measurement_covariance.shape) != 2:
+            shape_problems += "Measurement covariance should be a 2D array. "
+        
         measurement_size = len(self.measurement)
         spatial_state_size = self.prior_spatial_correlation.shape[0]
         temporal_state_size = self.prior_temporal_correlation.shape[0]
 
-        assert self.prior.shape == (
-            temporal_state_size,
-            spatial_state_size,
-        ), f"Prior shape is incorrect. Expected: {(temporal_state_size, spatial_state_size)}, got: {self.prior.shape}"
-        assert self.prior_standard_deviation.shape == (
-            temporal_state_size,
-            spatial_state_size,
-        ), f"Prior standard deviation shape is incorrect. Expected: {(temporal_state_size, spatial_state_size)}, got: {self.prior_standard_deviation.shape}"
-        assert self.prior_temporal_correlation.shape == (
-            temporal_state_size,
-            temporal_state_size,
-        ), f"Prior temporal correlation shape is incorrect. Expected: {(temporal_state_size, temporal_state_size)}, got: {self.prior_temporal_correlation.shape}"
-        assert self.prior_spatial_correlation.shape == (
-            spatial_state_size,
-            spatial_state_size,
-        ), f"Prior spatial correlation shape is incorrect. Expected: {(spatial_state_size, spatial_state_size)}, got: {self.prior_spatial_correlation.shape}"
-        assert self.forward_model.shape == (
-            measurement_size,
-            temporal_state_size,
-            spatial_state_size,
-        ), f"Forward model shape is incorrect. Expected: {(measurement_size, temporal_state_size, spatial_state_size)}, got: {self.forward_model.shape}"
-        assert self.measurement_covariance.shape == (
-            measurement_size,
-            measurement_size,
-        ), f"Measurement covariance shape is incorrect. Expected: {(measurement_size, measurement_size)}, got: {self.measurement_covariance.shape}"
+        if self.prior.shape != (temporal_state_size, spatial_state_size):
+            shape_problems += (
+                "Prior shape is incorrect. Expected: "
+                f"{(temporal_state_size, spatial_state_size)}, got: {self.prior.shape}. "
+            )
+        if self.prior_standard_deviation.shape != (
+            temporal_state_size, spatial_state_size
+        ):
+            shape_problems += (
+                "Prior standard deviation shape is incorrect. Expected: "
+                f"{(temporal_state_size, spatial_state_size)}, got: "
+                f"{self.prior_standard_deviation.shape}. "
+            )
+        if self.prior_temporal_correlation.shape != (
+            temporal_state_size, temporal_state_size
+        ):
+            shape_problems += (
+                "Prior temporal correlation shape is incorrect. Expected: "
+                f"{(temporal_state_size, temporal_state_size)}, got: "
+                f"{self.prior_temporal_correlation.shape}. "
+            )
+        if self.prior_spatial_correlation.shape != (
+            spatial_state_size, spatial_state_size
+        ):
+            shape_problems += (
+                "Prior spatial correlation shape is incorrect. Expected: "
+                f"{(spatial_state_size, spatial_state_size)}, got: "
+                f"{self.prior_spatial_correlation.shape}. "
+            )
+        if self.forward_model.shape != (
+            measurement_size, temporal_state_size, spatial_state_size
+        ):
+            shape_problems += (
+                "Forward model shape is incorrect. Expected: "
+                f"{(measurement_size, temporal_state_size, spatial_state_size)}, got: "
+                f"{self.forward_model.shape}. "
+            )
+        if shape_problems:
+            raise ValueError(shape_problems)
         return
