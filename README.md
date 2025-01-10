@@ -5,13 +5,14 @@ Solve various inverse problems!
 ## Installation
 
 1. Install poetry as a package manager (<https://python-poetry.org/docs/#installation>)
+2. Install `numba` and `llvmlite`
 
-2. Download the source code from GitHub:
+3. Download the source code from GitHub:
 
     ```bash
     $ git clone https://github.com/ATMO-IUP-UHEI/pyinverse.git
     ```
-3. Open the directory and install with poetry:
+4. Open the directory and install with poetry:
 
     ```bash
     cd pyinverse
