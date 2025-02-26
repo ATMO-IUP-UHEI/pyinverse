@@ -2,7 +2,7 @@
 name = "pyinverse"
 version = "0.1.0"
 description = "Solve various inverse problems!"
-authors = ["Robert Maiwald", "Chrstopher Lüken-Winkels"]
+authors = ["Robert Maiwald", "Christopher Lüken-Winkels"]
 license = "MIT"
 readme = "README.md"
 
