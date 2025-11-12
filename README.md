@@ -5,17 +5,16 @@ Solve various inverse problems!
 ## Installation
 
 1. Install poetry as a package manager (<https://python-poetry.org/docs/#installation>)
-2. Install `numba` and `llvmlite` either manually or create a conda environment using the provided file:
-    ```bash
-    $ conda env create -f conda-environment.yaml
-    ```
-
-4. Download the source code from GitHub:
+2. Download the source code from GitHub:
 
     ```bash
     $ git clone https://github.com/ATMO-IUP-UHEI/pyinverse.git
     ```
-5. Open the directory and install with poetry:
+3. Install `numba` and `llvmlite` either manually or create a conda environment using the provided file:
+    ```bash
+    $ conda env create -f conda-environment.yaml
+    ```
+4. Open the directory and install with poetry:
 
     ```bash
     cd pyinverse
@@ -41,3 +40,4 @@ Interested in contributing? Check out the contributing guidelines. Please note t
 ## Credits
 
 `pyinverse` was created with [`cookiecutter`](https://cookiecutter.readthedocs.io/en/latest/) and the `py-pkgs-cookiecutter` [template](https://github.com/py-pkgs/py-pkgs-cookiecutter).
+
