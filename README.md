@@ -35,7 +35,7 @@ Interested in contributing? Check out the contributing guidelines. Please note t
 
 ## License
 
-`pyinverse` was created by Robert Maiwald. It is licensed under the terms of the MIT license.
+`pyinverse` was created by Robert Maiwald and Christopher Lüken-Winkels. It is licensed under the terms of the MIT license.
 
 ## Credits
 
