@@ -27,7 +27,26 @@ $ pip install pyinverse
 
 ## Usage
 
-- TODO
+```python
+import numpy as np
+from pyinverse.loss import Bayesian
+from pyinverse.solver import BayesianAnalytical
+
+# Define your inverse problem
+y = np.array([1.2, 2.3, 1.8])           # measurements
+K = np.array([[1, 0], [0, 1], [1, 1]])  # forward model
+x_prior = np.array([1.0, 1.0])          # prior state
+cov_prior = np.eye(2)                    # prior covariance
+cov_y = 0.1 * np.eye(3)                  # measurement covariance
+
+# Set up Bayesian inversion
+loss = Bayesian(y, cov_y, K, x_prior, cov_prior)
+solver = BayesianAnalytical(loss)
+
+# Solve for posterior state
+x_post = solver.x_posterior
+cov_post = solver.cov_posterior
+```
 
 ## Contributing
 
