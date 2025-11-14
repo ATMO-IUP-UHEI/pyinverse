@@ -19,7 +19,7 @@ class LeastSquares:
         return self.y
 
 
-class Thikonov:
+class Tikhonov:
     def __init__(self, y, K, alpha):
         self.y = y
         self.K = K

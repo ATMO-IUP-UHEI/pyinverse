@@ -1,9 +1,9 @@
-from pyinverse.loss import LeastSquares, Thikonov, Bayesian, BayesianYM
+from pyinverse.loss import LeastSquares, Tikhonov, Bayesian, BayesianYM
 import numpy as np
 import pytest
 
 
-def test_leastsquares_thikonov_bayesian():
+def test_leastsquares_tikhonov_bayesian():
     rng = np.random.default_rng(seed=0)
     n_tests = 100
     for i in range(n_tests):
@@ -28,7 +28,7 @@ def test_leastsquares_thikonov_bayesian():
         regularization_loss = alpha * np.linalg.norm(x_pred) ** 2
 
         least_squares_test(x_pred, K, y, measurement_loss)
-        thikonov_test(x_pred, K, y, alpha, measurement_loss, regularization_loss)
+        tikhonov_test(x_pred, K, y, alpha, measurement_loss, regularization_loss)
 
         measurement_loss = np.linalg.norm((y - K @ x_pred) / np.sqrt(cov_y)) ** 2
         regularization_loss = (
@@ -54,8 +54,8 @@ def least_squares_test(x_pred, K, y, measurement_loss):
     assert np.allclose(K, loss.get_K())
 
 
-def thikonov_test(x_pred, K, y, alpha, measurement_loss, regularization_loss):
-    loss = Thikonov(y, K, alpha)
+def tikhonov_test(x_pred, K, y, alpha, measurement_loss, regularization_loss):
+    loss = Tikhonov(y, K, alpha)
     assert np.allclose(measurement_loss + regularization_loss, loss(x_pred))
 
     loss.get_y()
