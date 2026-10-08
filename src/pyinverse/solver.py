@@ -85,6 +85,114 @@ class BayesianAnalytical:
 
     def __call__(self) -> Tuple[np.ndarray, np.ndarray]:
         return self.x_posterior, self.cov_posterior
+class BayesianAnalytical_sparse:
+    def __init__(self, loss: Bayesian) -> None:
+        """
+        Analytical Bayesian inversion
+
+        Solves for posterior and its covariance based on the given loss. Additionally
+        grants access to the gain matrix and averaging kernel.
+
+        Args:
+            loss (Bayesian): Bayesian loss function
+        """
+        if not isinstance(loss, Bayesian):
+            raise TypeError("Loss function must be Bayesian")
+        self.loss = loss
+        self._gain = None
+        self._averaging_kernel = None
+        self._x_posterior = None
+        self._cov_posterior = None
+
+    @property
+    def gain(self) -> np.ndarray:
+        if self._gain is None:
+            print('calculating gain')
+            if not isinstance(self.loss.cov_prior, sparse.SparseArray):
+                self.loss.cov_prior = sparse.COO(self.loss.cov_prior)
+            if not isinstance(self.loss.K, sparse.SparseArray):
+                self.loss.K = sparse.COO(self.loss.K)
+            if not isinstance(self.loss.cov_y, sparse.SparseArray):
+                self.loss.cov_y = sparse.COO(self.loss.cov_y)
+            self._gain = (
+                self.loss.cov_prior
+                @ self.loss.K.T
+                @ np.linalg.inv(
+                    (self.loss.K @ self.loss.cov_prior @ self.loss.K.T + self.loss.cov_y).todense()
+                )
+            )
+            print('finished calculating gain')
+        return self._gain
+
+    @property
+    def averaging_kernel(self) -> sparse.COO:
+        if self._averaging_kernel is None:
+            print('calculating averaging kernel')
+            if not isinstance(self.loss.K, sparse.SparseArray):
+                self.loss.K = sparse.COO(self.loss.K)
+            self._averaging_kernel = self.gain @ self.loss.K
+            print('finished calculating averaging kernel')
+        return self._averaging_kernel
+    
+    @property
+    def averaging_kernel_diagonal(self) ->np.ndarray:
+        if self._averaging_kernel is None:
+            print('calculating diagonal of averaging kernel')
+            if not isinstance(self.loss.K, sparse.SparseArray):
+                self.loss.K = sparse.COO(self.loss.K)
+            return np.asarray(((self.gain * self.loss.K.T).sum(axis=1)).todense()).ravel()
+        else:
+            return sparse.diagonal(self.averaging_kernel).todense()
+
+
+    @property
+    def x_posterior(self) -> np.ndarray:
+        if self._x_posterior is None:
+            print('calculating posterior')
+            if not isinstance(self.loss.K, sparse.SparseArray):
+                self.loss.K = sparse.COO(self.loss.K)
+            self._x_posterior = self.loss.x_prior + self.gain @ (
+                self.loss.y - self.loss.K @ self.loss.x_prior
+            )
+            print('finished calculating posterior')
+        return self._x_posterior
+
+    @property
+    def cov_posterior(self) -> sparse.COO:
+        if self._cov_posterior is None:
+            print('calculating covariance of posterior')
+            if not isinstance(self.loss.cov_prior, sparse.SparseArray):
+                self.loss.cov_prior = sparse.COO(self.loss.cov_prior)
+            self._cov_posterior = (
+                self.loss.cov_prior - self.averaging_kernel @ self.loss.cov_prior
+            )
+            print('finished calculating covariance of posterior')
+        return self._cov_posterior
+
+    @property
+    def std_posterior(self) -> np.ndarray:
+        if self._cov_posterior is None:
+            print('calculating standard deviation of posterior')
+            if not isinstance(self.loss.cov_prior, sparse.SparseArray):
+                self.loss.cov_prior = sparse.COO(self.loss.cov_prior) 
+
+            n = self.loss.cov_prior.shape[0]
+            idx = np.arange(n)
+            diag_C = np.asarray(self.loss.cov_prior[idx, idx].todense()).ravel()
+            KC=(self.loss.K @ self.loss.cov_prior).todense()
+            diag_GKC = np.sum(self.gain * KC.T,axis=1)
+            std= np.sqrt(diag_C - diag_GKC)
+            print('finished calculating standard deviation of posterior')
+            return std
+        else:
+            return np.sqrt(self.cov_posterior.diagonal())
+
+    @property
+    def y_posterior(self) -> np.ndarray:
+        return self.loss.K @ self.x_posterior
+
+    def __call__(self) -> Tuple[np.ndarray, np.ndarray]:
+        return self.x_posterior, self.cov_posterior
 
 
 class BayesianAnalyticalYM_Base:
